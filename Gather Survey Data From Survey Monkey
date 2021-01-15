@@ -1,0 +1,105 @@
+function Candidate_Answer(){
+  
+  
+  var options = {'method' : 'get',
+                 'headers':{
+                   'Authorization':'###Authorizationkey###'},
+                 'contentType': 'application/json',
+                };
+  
+  //Survey monkey API call doesnt work well so you need to call each page individually. I am instead sorting by newest response and willadd them under the others
+  var response = UrlFetchApp.fetch('https://api.surveymonkey.ca/v3/surveys/190135795/responses/bulk?page=1&per_page=100&sort_by=date_modified&sort_order=DESC', options);
+ // var size = response.getHeaders();
+  var req = response.getContentText();
+  req =JSON.parse(req);
+  
+  
+  var Respondant_Length=req.data.length;
+  
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Candidate Answers");
+  var lr=sheet.getLastRow()+1;
+  
+  
+  
+  for (var i=0; i<Respondant_Length; i++) {
+    
+    var ColumTracker=0;
+    
+    //This adds the date the of the response
+    value =req.data[i].date_created;
+    dataRange = sheet.getRange(i+lr,1);
+    dataRange.setValue(value);
+    sheet.getRange(1,1).setValue("Date");
+    //This tracks how many questions were answered by the participant
+    var Questions_Length= req.data[i].pages[0].questions.length;
+    //Loops throught the questions
+    for (var j=0; j <Questions_Length; j++){
+      
+      value= req.data[i].pages[0].questions[j].id;
+      dataRange = sheet.getRange(i+lr,2+ColumTracker);
+      dataRange.setValue(value);
+      
+      sheet.getRange(1,2+ColumTracker).setValue("Question " + (j+1));
+      ColumTracker++;
+      //This tracks how many answers there are for a question (usually 1 execpt for "table like" questions
+      var Answers_Length=req.data[i].pages[0].questions[j].answers.length;
+      for (var k=0; k<Answers_Length; k++){
+        //This tracks the answers for a given question
+        var CurrentAnswer=req.data[i].pages[0].questions[j].answers[k];
+        
+        //the if statements check which type of questions it is
+        
+        //Text type anwsers
+        if ("text" in CurrentAnswer){
+          sheet.getRange(1,2+ColumTracker).setValue("Answer " + (j+1));
+          value = req.data[i].pages[0].questions[j].answers[k].text;
+          dataRange = sheet.getRange(i+lr,2+ColumTracker);
+          dataRange.setValue(value);
+          
+          ColumTracker++;
+          
+        }
+        
+        //Table type anwsers
+        
+        else if ("row_id" in CurrentAnswer){
+          sheet.getRange(1,2+ColumTracker).setValue("Question " + (j+1)+"_"+(k+1));
+          value = req.data[i].pages[0].questions[j].answers[k].row_id;
+          dataRange = sheet.getRange(i+lr,2+ColumTracker);
+          dataRange.setValue(value);
+          
+          ColumTracker++;
+          sheet.getRange(1,2+ColumTracker).setValue("Answer " + (j+1)+"_"+(k+1));
+          value = req.data[i].pages[0].questions[j].answers[k].choice_id;
+          dataRange = sheet.getRange(i+lr,2+ColumTracker);
+          dataRange.setValue(value);
+          
+          ColumTracker++;
+          
+        }
+        //single select type anwsers
+        
+        else{
+          sheet.getRange(1,2+ColumTracker).setValue("Answer " + (j+1));
+          value = req.data[i].pages[0].questions[j].answers[k].choice_id;
+          dataRange = sheet.getRange(i+lr,2+ColumTracker);
+          dataRange.setValue(value);
+          
+          ColumTracker++;
+        }
+        
+        
+        
+      }
+      
+    }
+  }
+  
+  
+  
+  var dup= sheet.getRange(1,1,sheet.getLastRow(),sheet.getLastColumn());
+  dup.removeDuplicates([1,3]);
+  
+  
+}
